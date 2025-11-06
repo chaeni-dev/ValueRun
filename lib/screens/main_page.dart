@@ -1,8 +1,12 @@
+// lib/screens/main_page.dart
 import 'package:flutter/material.dart';
-import '../screens/pages/community/community_page.dart'; // ✅ 커뮤니티 페이지
-import '../screens/pages/report/report.dart'; // ✅ 러닝 리포트 페이지 (파일명: report.dart)
-import '../screens/pages/home/home.dart';
 
+// 같은 프로젝트 내부 경로 import (파일 이름과 경로에 맞춰 수정)
+import 'pages/home/home.dart';             // HomePage
+import 'pages/report/report.dart';         // ReportPage
+import 'pages/donate/donate_page.dart';    // DonatePage
+import 'pages/community/community_page.dart'; // CommunityPage
+import 'pages/total/total.dart';
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
@@ -13,16 +17,20 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  // ✅ RecordPage() → RunningReportPage() 로 교체
-  final List<Widget> _pages = const [
+  // const 제거: 각 페이지 생성자가 const가 아닐 수 있음
+  final List<Widget> _pages = [
     RunningHomePage(),
-    RunningReportPage(), // ✅ 러닝 리포트 페이지 연결
-    DonationPage(),
+    RunningReportPage(),
+    DonatePage(),
     CommunityPage(),
-    MorePage(),
+    TotalPage()
   ];
 
-  void _onItemTapped(int index) => setState(() => _selectedIndex = index);
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,37 +43,28 @@ class _MainPageState extends State<MainPage> {
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: '홈'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: '기록'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_outline), label: '기부하기'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: '커뮤니티'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu), label: '전체'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            label: '홈',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_outlined),
+            label: '기록',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_outline),
+            label: '기부하기',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people_alt_outlined),
+            label: '커뮤니티',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu),
+            label: '전체',
+          ),
         ],
       ),
     );
   }
-}
-
-// ✅ 이하 기본 페이지들은 그대로 유지
-// class HomePage extends StatelessWidget {
-//   const HomePage({super.key});
-//   @override
-//   Widget build(BuildContext context) => const Center(
-//         child: Text('🏃‍♀️ 가치런 홈 화면',
-//             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-//       );
-// }
-
-class DonationPage extends StatelessWidget {
-  const DonationPage({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('🤝 기부하기 페이지'));
-}
-
-class MorePage extends StatelessWidget {
-  const MorePage({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('☰ 전체 메뉴'));
 }
