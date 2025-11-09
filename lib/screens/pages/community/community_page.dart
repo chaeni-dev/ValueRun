@@ -25,6 +25,10 @@ class _CommunityPageState extends State<CommunityPage>
     super.dispose();
   }
 
+  void _switchToCrewList() {
+    _tabController.animateTo(0); // 👈 탭 이동
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,9 +51,9 @@ class _CommunityPageState extends State<CommunityPage>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          CrewListPage(),
-          CreateCrewPage(),
+        children: [
+          const CrewListPage(),
+          CreateCrewPage(onCreated: _switchToCrewList), // ✅ 생성 후 이동
         ],
       ),
     );

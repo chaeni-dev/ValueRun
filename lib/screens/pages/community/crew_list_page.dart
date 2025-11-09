@@ -1,56 +1,106 @@
 import 'package:flutter/material.dart';
+import 'crew_data.dart';
 
-class CrewListPage extends StatelessWidget {
+class CrewListPage extends StatefulWidget {
   const CrewListPage({super.key});
 
-  final List<Map<String, String>> crews = const [
-    {
-      "name": "부산 러너스",
-      "desc": "서부산 지역 주말 달리기 모임 🏃‍♀️",
-      "members": "27명"
-    },
-    {
-      "name": "새벽크루",
-      "desc": "매일 아침 6시에 함께 달려요 🌅",
-      "members": "18명"
-    },
-    {
-      "name": "가치런 공식 크루",
-      "desc": "가치런 유저들이 함께하는 공식 모임 💙",
-      "members": "102명"
-    },
-  ];
+  @override
+  State<CrewListPage> createState() => _CrewListPageState();
+}
+
+class _CrewListPageState extends State<CrewListPage> {
+  void _deleteCrew(int index) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: Text('"${CrewData.crews[index]['name']}" 크루를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                CrewData.crews.removeAt(index);
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('🗑️ 크루가 삭제되었습니다.')),
+              );
+            },
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      itemCount: crews.length,
-      padding: const EdgeInsets.all(16),
+      itemCount: CrewData.crews.length,
       itemBuilder: (context, index) {
-        final crew = crews[index];
+        final crew = CrewData.crews[index];
         return Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 3,
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.blueAccent,
-              child: Icon(Icons.people, color: Colors.white),
-            ),
-            title: Text(crew["name"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(crew["desc"]!),
-            trailing: Text(
-              crew["members"]!,
-              style: const TextStyle(color: Colors.blueGrey),
-            ),
+            title: Text(crew['name']),
+            subtitle: Text(crew['desc']),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${crew["name"]} 상세보기 준비 중...')),
-              );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CrewDetailPage(crew: crew),
+                ),
+              ).then((_) => setState(() {}));
             },
+            onLongPress: () => _deleteCrew(index), // 👈 길게 누르면 삭제
           ),
         );
       },
+    );
+  }
+}
+
+class CrewDetailPage extends StatelessWidget {
+  final Map<String, dynamic> crew;
+  const CrewDetailPage({super.key, required this.crew});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(crew['name'])),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              crew['desc'],
+              style: const TextStyle(fontSize: 16, height: 1.5),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('🎉 ${crew['name']} 크루에 참여했습니다!')),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('크루 참여하기'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
