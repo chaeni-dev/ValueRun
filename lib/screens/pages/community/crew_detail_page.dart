@@ -66,7 +66,18 @@ class _CrewDetailPageState extends State<CrewDetailPage> {
             icon: Icons.campaign_rounded,
             title: '공지',
             trailing: TextButton(
-              onPressed: () {},
+              onPressed: () { Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NoticeListPage(
+          crewName: c.name,
+          notices: const [
+            NoticeItem(title: '부산 하단 러닝', subtitle: '11월 3일(월) 20:00 | 5km 러닝'),
+            NoticeItem(title: '신규 멤버 OT',  subtitle: '11월 10일(월) 19:30 | 온라인 ZOOM'),
+          ],
+        ),
+      ),
+    );},
               child: const Text('더보기'),
             ),
             child: Column(
@@ -91,7 +102,15 @@ class _CrewDetailPageState extends State<CrewDetailPage> {
             icon: Icons.groups_2_rounded,
             title: '멤버',
             trailing: TextButton(
-              onPressed: () {},
+              onPressed: () {Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MembersPage(
+          crewName: c.name,
+          initials: const ['HJ','SY','GH','YD','MJ','AR','LK','PN','QS','TT'],
+        ),
+      ),
+    );},
               child: const Text('전체 보기'),
             ),
             child: Row(
