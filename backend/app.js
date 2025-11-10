@@ -409,6 +409,7 @@ app.get('/api/donation/campaigns', (req, res) => {
 });
 
 // ▶ 기부하기 (거리 차감 + ledger 기록)
+// ▶ 기부하기 (거리 차감 + ledger 기록 + 캠페인 진행도 반영)
 app.post('/api/donation/donate', async (req, res) => {
   const { userId, campaignId, donateKm } = req.body;
   const conn = await pool.getConnection();
@@ -416,35 +417,53 @@ app.post('/api/donation/donate', async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // 현재 지갑 확인
+    const amount = Number(donateKm);
+
+    // ✅ 1. 현재 지갑 확인
     const [[wallet]] = await conn.query(
       'SELECT km_balance FROM donation_wallet WHERE user_id=?',
       [userId]
     );
 
-    if (!wallet || wallet.km_balance < donateKm) {
+    if (!wallet || Number(wallet.km_balance) < amount) {
       throw new Error('기부 가능한 거리가 부족합니다.');
     }
 
-    // 거리 차감
+    // ✅ 2. 거리 차감
     await conn.execute(
       'UPDATE donation_wallet SET km_balance = km_balance - ? WHERE user_id=?',
-      [donateKm, userId]
+      [amount, userId]
     );
 
-    // ledger에 기록
+    // ✅ 3. ledger에 기록 추가
     await conn.execute(
-      `INSERT INTO donation_ledger (user_id, type, amount_km, ref_run_id, memo, campaign_id)
-       VALUES (?, 'debit', ?, NULL, 'Campaign donation', ?)`,
-      [userId, donateKm, campaignId]
+      `INSERT INTO donation_ledger (user_id, type, amount_km, memo, campaign_id)
+       VALUES (?, 'debit', ?, 'Campaign donation', ?)`,
+      [userId, amount, campaignId]
+    );
+
+    // ✅ 4. 캠페인 테이블에서 current_km 누적 업데이트
+    await conn.execute(
+      `UPDATE donation_campaigns 
+       SET current_km = current_km + ? 
+       WHERE id = ?`,
+      [amount, campaignId]
+    );
+
+    // ✅ 5. 최신 누적 거리 가져오기
+    const [[row]] = await conn.query(
+      `SELECT current_km FROM donation_campaigns WHERE id=?`,
+      [campaignId]
     );
 
     await conn.commit();
 
+    // ✅ 6. 프론트에 최신 거리 값도 함께 전달
     res.json({
       success: true,
-      message: `✅ ${donateKm}km 기부 완료!`,
-      donated_km: donateKm
+      message: `✅ ${amount}km 기부 완료!`,
+      donated_km: amount,
+      updatedKm: Number(row.current_km)  // ← 이게 핵심!
     });
   } catch (e) {
     await conn.rollback();

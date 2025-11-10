@@ -29,25 +29,27 @@ class _DonatePageState extends State<DonatePage> {
     _fetchCampaigns();
   }
 
-  // ✅ 전체 요약 데이터 가져오기
-  Future<void> _fetchSummary() async {
-    try {
-      final res = await http.get(Uri.parse('$baseUrl/api/summary/total?userId=$userId'));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        setState(() {
-          availableKm =
-              double.tryParse(data['available_km'].toString()) ?? 0.0;
-          donatedKm =
-              double.tryParse(data['donated_km'].toString()) ?? 0.0;
-        });
-      } else {
-        debugPrint('⚠️ 요약 데이터 불러오기 실패: ${res.body}');
-      }
-    } catch (e) {
-      debugPrint('❌ 요약 데이터 불러오기 실패: $e');
+Future<void> _fetchSummary() async {
+  try {
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/summary/total?userId=$userId'),
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      setState(() {
+        // ✅ 홈화면과 동일한 기준으로 통일
+        availableKm = double.tryParse(data['available_km'].toString()) ?? 0.0;
+        donatedKm = double.tryParse(data['donated_km'].toString()) ?? 0.0;
+      });
+    } else {
+      debugPrint('⚠️ 요약 데이터 불러오기 실패: ${res.body}');
     }
+  } catch (e) {
+    debugPrint('❌ 요약 데이터 불러오기 실패: $e');
   }
+}
+
 
   // ✅ 캠페인 리스트 가져오기
   Future<void> _fetchCampaigns() async {
@@ -68,35 +70,59 @@ class _DonatePageState extends State<DonatePage> {
   }
 
   // ✅ 기부하기 API 호출
-  Future<void> _donate(double km, int campaignId, String title) async {
-    try {
-      final res = await http.post(
-        Uri.parse('$baseUrl/api/donation/donate'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'userId': userId,
-          'campaignId': campaignId,
-          'donateKm': km,
-        }),
+Future<void> _donate(double km, int campaignId, String title) async {
+  try {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/donation/donate'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'campaignId': campaignId,
+        'donateKm': km,
+      }),
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final updatedKm = (data['updatedKm'] as num?)?.toDouble();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("✅ $title에 ${km.toStringAsFixed(1)}km 기부 완료!")),
       );
 
-      if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✅ $title에 ${km.toStringAsFixed(1)}km 기부 완료!")),
-        );
-        _fetchSummary(); // 남은 거리 갱신
-      } else {
-        final data = jsonDecode(res.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('⚠️ 실패: ${data['error'] ?? '기부 실패'}')),
-        );
+      // ✅ 상단 요약 다시 불러오기 (기부 가능 거리, 총 기부 거리)
+      await _fetchSummary();
+
+      // ✅ 해당 캠페인의 currentKm를 바로 갱신 (updatedKm가 있으면)
+      if (updatedKm != null) {
+        setState(() {
+          campaigns = campaigns.map((c) {
+            if (c['id'] == campaignId) {
+              final m = Map<String, dynamic>.from(c);
+              m['currentKm'] = updatedKm;
+              return m;
+            }
+            return c;
+          }).toList();
+        });
       }
-    } catch (e) {
+
+      // ✅ 혹시 반영이 안 될 경우 전체 캠페인 다시 불러오기
+      await _fetchCampaigns();
+    } else {
+      final data = jsonDecode(res.body);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ 서버 연결 실패: $e')),
+        SnackBar(content: Text('⚠️ 실패: ${data['error'] ?? '기부 실패'}')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('⚠️ 서버 연결 실패: $e')),
+    );
   }
+}
+
+        
 
   @override
   Widget build(BuildContext context) {
@@ -197,8 +223,10 @@ class CampaignCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = (currentKm / goalKm).clamp(0.0, 1.0);
-    final percent = (progress * 100).toStringAsFixed(0);
+  final ratio = currentKm / goalKm;
+  final progress = ratio > 1 ? 1.0 : ratio; // bar는 100%까지만 꽉 차게
+  final percent = (ratio * 100).toStringAsFixed(0); // %는 100 넘어도 계속 증가
+
 
     // ✅ 카드 전체를 InkWell로 감싸서 탭하면 상세페이지 이동
     return InkWell(

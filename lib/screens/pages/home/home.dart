@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; // Timer 사용
-import 'dart:convert'; // JSON 인코딩
-import 'package:http/http.dart' as http; // HTTP 요청
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class RunningHomePage extends StatefulWidget {
   const RunningHomePage({super.key});
@@ -11,43 +11,64 @@ class RunningHomePage extends StatefulWidget {
 }
 
 class _RunningHomePageState extends State<RunningHomePage> {
-  // 서버 URL (⚠️ 시뮬레이터/실기기에서는 localhost 대신 맥 IP로 변경!)
   final String baseUrl = 'http://localhost:4000';
+  final int userId = 1;
 
-  // 러닝 상태 변수
-  bool _isRunning = false; // 현재 러닝 중인지 여부
-  Timer? _timer; // 타이머 객체
-  int _seconds = 0; // 측정된 시간 (초 단위)
-  int? _runId; // 서버에서 받은 러닝 ID
+  bool _isRunning = false;
+  Timer? _timer;
+  int _seconds = 0;
+  int? _runId;
 
-  // 표시될 데이터
-  double _distance = 0.0; // 오늘 활동한 거리 (km)
-  double _donationDistance = 0.0; // 기부 가능한 거리 (km)
-  String _pace = "--'--\""; // 평균 페이스
-  int _calories = 0; // 칼로리 (kcal)
+  double _distance = 0.0;
+  double _donationDistance = 0.0;
+  String _pace = "--'--\"";
+  int _calories = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchDonationBalance();
+  }
+  
+    // ✅ 여기에 추가
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // 다른 탭에서 돌아올 때 자동으로 새로고침
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchDonationBalance();
+    });
+  }
+  
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
   }
 
-  // 💡 Start/Stop 버튼 클릭 핸들러
+  Future<void> _fetchDonationBalance() async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/api/summary/total?userId=$userId'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _donationDistance = double.tryParse(data['available_km'].toString()) ?? 0.0;
+        });
+      }
+    } catch (e) {
+      print('❌ 서버 연결 실패 (_fetchDonationBalance): $e');
+    }
+  }
+
   void _toggleRunning() async {
     if (_isRunning) {
-      // Stop 상태로 전환
       _timer?.cancel();
-      setState(() {
-        _isRunning = false;
-      });
-
-      if (_runId != null) {
-        await _finishRunOnServer(); // 서버로 러닝 종료 데이터 전송
-      }
-
-      print('러닝 종료. 총 거리: $_distance km');
+      setState(() => _isRunning = false);
+      if (_runId != null) await _finishRunOnServer();
     } else {
-      // Start 상태로 전환
+      setState(() {
+        _isRunning = true;
       setState(() {
         _isRunning = true;
         _seconds = 0;
@@ -55,69 +76,53 @@ class _RunningHomePageState extends State<RunningHomePage> {
         _calories = 0;
       });
 
-      await _startRunOnServer(); // 서버로 러닝 시작 기록
+        _calories = 0;
+      });
+      await _startRunOnServer();
       _startTimer();
     }
   }
 
-  // 💡 타이머 시작 로직
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _seconds++;
+void _startTimer() {
+  _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    setState(() {
+      _seconds++;
+      if (_seconds % 10 == 0) _distance += 0.1;
 
-        // 1초마다 데이터 업데이트 (더미 로직)
-        if (_seconds % 10 == 0) {
-          _distance += 0.1; // 10초마다 100m 증가
-          _donationDistance = _distance;
-        }
+      // ✅ 페이스 계산 제거 (고정)
+      _pace = "--'--\"";
 
-        // 평균 페이스 계산
-        int minutes = (_seconds ~/ 60);
-        int seconds = (_seconds % 60);
-        _pace =
-            '${minutes.toString().padLeft(2, '0')}\'${seconds.toString().padLeft(2, '0')}"';
-
-        // 칼로리 업데이트
-        _calories = (_seconds * 0.5).toInt();
-      });
+      _calories = (_seconds * 0.5).toInt();
     });
+  });
+}
+
+
+  String _formatTime(int sec) {
+    int m = sec ~/ 60;
+    int s = sec % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  // 💡 시간을 'MM:SS' 형식으로 포맷
-  String _formatTime(int totalSeconds) {
-    int minutes = totalSeconds ~/ 60;
-    int seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  // ✅ 러닝 시작 시 서버에 기록
   Future<void> _startRunOnServer() async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/runs/start'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'userId': 1, // 나중에 로그인 기능 생기면 수정 가능
+          'userId': userId,
           'startedAt': DateTime.now().toUtc().toIso8601String(),
         }),
       );
-
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() {
-          _runId = data['runId'];
-        });
-        print('✅ 러닝 시작 (runId: $_runId)');
-      } else {
-        print('❌ 러닝 시작 실패: ${res.body}');
+        setState(() => _runId = data['runId']);
       }
     } catch (e) {
       print('⚠️ 서버 연결 실패 (start): $e');
     }
   }
 
-  // ✅ 러닝 종료 시 서버에 기록
   Future<void> _finishRunOnServer() async {
     try {
       final res = await http.post(
@@ -133,18 +138,12 @@ class _RunningHomePageState extends State<RunningHomePage> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-
-        // ✅ 서버에서 받은 기부 누적 거리 반영
         setState(() {
           _donationDistance = (data['wallet_km_balance'] as num?)?.toDouble() ?? 0.0;
         });
-
-        print('✅ 러닝 종료 업로드 완료: $data');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('러닝 기록이 서버에 저장되었습니다 ✅')),
         );
-      } else {
-        print('❌ 러닝 종료 실패: ${res.body}');
       }
     } catch (e) {
       print('⚠️ 서버 연결 실패 (finish): $e');
@@ -153,97 +152,134 @@ class _RunningHomePageState extends State<RunningHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final brandColor = const Color(0xFF15B3DA);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('기록',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text('기록', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Column(
           children: [
-            // 1. 거리 및 기부 거리
+            // 🔹 상단 카드 (거리 / 기부)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildValueText(
-                    '오늘 활동한 거리', '${_distance.toStringAsFixed(2)} km'),
-                _buildValueText(
-                    '기부 가능한 거리', '${_donationDistance.toStringAsFixed(2)} km'),
+                _buildCard('오늘 활동한 거리', '${_distance.toStringAsFixed(2)} km', brandColor),
+                _buildCard('기부 가능한 거리', '${_donationDistance.toStringAsFixed(2)} km', Colors.orangeAccent),
               ],
             ),
-            const SizedBox(height: 50),
+            const SizedBox(height: 40),
 
-            // 2. 평균 페이스, 시간, 칼로리
+            // 🔹 중간 정보 3개 (페이스 / 시간 / 칼로리)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildValueText(
-                    '평균 페이스', _isRunning ? _pace : "--'--\""),
-                _buildValueText('시간', _formatTime(_seconds)),
-                _buildValueText('칼로리', '${_calories.toString()} kcal'),
+                _buildInfo('평균 페이스', _isRunning ? _pace : "--'--\""),
+                _buildInfo('시간', _formatTime(_seconds)),
+                _buildInfo('칼로리', '$_calories kcal'),
               ],
             ),
-
             const Spacer(),
 
-            // 3. Start/Stop 버튼
+            // 🔹 하단 버튼
             GestureDetector(
               onTap: _toggleRunning,
               child: Container(
-                width: 100,
-                height: 100,
+                width: 160,
+                height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _isRunning ? Colors.redAccent : Colors.green,
+                  gradient: LinearGradient(
+                    colors: _isRunning
+                        ? [Colors.redAccent, Colors.red]
+                        : [brandColor.withOpacity(0.8), brandColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _isRunning ? Colors.redAccent.withOpacity(0.4) : brandColor.withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 3,
+                    ),
+                  ],
                 ),
-                child: Center(
-                  child: _isRunning
-                      ? const Icon(Icons.stop, color: Colors.white, size: 50)
-                      : const Icon(Icons.play_arrow,
-                          color: Colors.white, size: 50),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 60,
+                    ),
+                    Text(
+                      _isRunning ? 'STOP' : 'START',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              _isRunning ? 'Stop' : 'Start',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _isRunning ? Colors.redAccent : Colors.green,
-              ),
-            ),
-
-            const Spacer(),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  // 재사용 가능한 텍스트 표시 위젯
-  Widget _buildValueText(String label, String value) {
+  Widget _buildCard(String label, String value, Color color) {
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+        border: Border.all(color: color.withOpacity(0.4), width: 1),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfo(String label, String value) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
         ),
         const SizedBox(height: 5),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
       ],
     );
   }
