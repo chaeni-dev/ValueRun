@@ -29,18 +29,15 @@ class _RunningHomePageState extends State<RunningHomePage> {
     super.initState();
     _fetchDonationBalance();
   }
-  
-    // ✅ 여기에 추가
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // 다른 탭에서 돌아올 때 자동으로 새로고침
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchDonationBalance();
     });
   }
-  
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -69,13 +66,8 @@ class _RunningHomePageState extends State<RunningHomePage> {
     } else {
       setState(() {
         _isRunning = true;
-      setState(() {
-        _isRunning = true;
         _seconds = 0;
         _distance = 0.0;
-        _calories = 0;
-      });
-
         _calories = 0;
       });
       await _startRunOnServer();
@@ -83,20 +75,16 @@ class _RunningHomePageState extends State<RunningHomePage> {
     }
   }
 
-void _startTimer() {
-  _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-    setState(() {
-      _seconds++;
-      if (_seconds % 10 == 0) _distance += 0.1;
-
-      // ✅ 페이스 계산 제거 (고정)
-      _pace = "--'--\"";
-
-      _calories = (_seconds * 0.5).toInt();
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _seconds++;
+        if (_seconds % 10 == 0) _distance += 0.1;
+        _pace = "--'--\"";
+        _calories = (_seconds * 0.5).toInt();
+      });
     });
-  });
-}
-
+  }
 
   String _formatTime(int sec) {
     int m = sec ~/ 60;
@@ -155,85 +143,110 @@ void _startTimer() {
     final brandColor = const Color(0xFF15B3DA);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('기록', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: const Text(
+          '기록',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Column(
-          children: [
-            // 🔹 상단 카드 (거리 / 기부)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildCard('오늘 활동한 거리', '${_distance.toStringAsFixed(2)} km', brandColor),
-                _buildCard('기부 가능한 거리', '${_donationDistance.toStringAsFixed(2)} km', Colors.orangeAccent),
-              ],
-            ),
-            const SizedBox(height: 40),
+      extendBodyBehindAppBar: true, // ✅ AppBar 위로 배경 확장
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ✅ 전체 배경 이미지
+          Image.asset(
+            '/Users/kimdahye/Desktop/ValueRun/src/running.png',
+            fit: BoxFit.cover,
+          ),
 
-            // 🔹 중간 정보 3개 (페이스 / 시간 / 칼로리)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildInfo('평균 페이스', _isRunning ? _pace : "--'--\""),
-                _buildInfo('시간', _formatTime(_seconds)),
-                _buildInfo('칼로리', '$_calories kcal'),
-              ],
-            ),
-            const Spacer(),
+          // ✅ 반투명 오버레이 (가독성 향상)
+          Container(
+            color: Colors.black.withOpacity(0.25),
+          ),
 
-            // 🔹 하단 버튼
-            GestureDetector(
-              onTap: _toggleRunning,
-              child: Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: _isRunning
-                        ? [Colors.redAccent, Colors.red]
-                        : [brandColor.withOpacity(0.8), brandColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _isRunning ? Colors.redAccent.withOpacity(0.4) : brandColor.withOpacity(0.4),
-                      blurRadius: 20,
-                      spreadRadius: 3,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          // ✅ 메인 콘텐츠
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              children: [
+                const SizedBox(height: 100),
+
+                // 🔹 상단 카드 (거리 / 기부)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      _isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 60,
-                    ),
-                    Text(
-                      _isRunning ? 'STOP' : 'START',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
+                    _buildCard('오늘 활동한 거리', '${_distance.toStringAsFixed(2)} km', brandColor),
+                    _buildCard('기부 가능한 거리', '${_donationDistance.toStringAsFixed(2)} km', Colors.orangeAccent),
                   ],
                 ),
-              ),
+                const SizedBox(height: 40),
+
+                // 🔹 중간 정보 (페이스 / 시간 / 칼로리)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildInfo('평균 페이스', _isRunning ? _pace : "--'--\""),
+                    _buildInfo('시간', _formatTime(_seconds)),
+                    _buildInfo('칼로리', '$_calories kcal'),
+                  ],
+                ),
+
+                const Spacer(),
+
+                // 🔹 하단 버튼
+                GestureDetector(
+                  onTap: _toggleRunning,
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: _isRunning
+                            ? [Colors.redAccent, Colors.red]
+                            : [brandColor.withOpacity(0.8), brandColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _isRunning
+                              ? Colors.redAccent.withOpacity(0.4)
+                              : brandColor.withOpacity(0.4),
+                          blurRadius: 20,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 60,
+                        ),
+                        Text(
+                          _isRunning ? 'STOP' : 'START',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 60),
+              ],
             ),
-            const SizedBox(height: 40),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -243,12 +256,12 @@ void _startTimer() {
       width: 150,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
             offset: const Offset(0, 3),
           ),
         ],
@@ -265,7 +278,7 @@ void _startTimer() {
             ),
           ),
           const SizedBox(height: 5),
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.black87)),
         ],
       ),
     );
@@ -276,10 +289,14 @@ void _startTimer() {
       children: [
         Text(
           value,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 5),
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.white70)),
       ],
     );
   }

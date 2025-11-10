@@ -107,6 +107,8 @@ Future<void> _donate(double km, int campaignId, String title) async {
         });
       }
 
+      
+
       // ✅ 혹시 반영이 안 될 경우 전체 캠페인 다시 불러오기
       await _fetchCampaigns();
     } else {

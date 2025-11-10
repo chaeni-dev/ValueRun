@@ -344,28 +344,48 @@ app.get('/api/summary/total', async (req, res) => {
 //   }
 // });
 
-app.get('/api/donation/recent', async (req, res) => {
-  const userId = Number(req.query.userId);
+// ▶ 캠페인 리스트 (DB에서 조회)
+// ▶ 캠페인 리스트 (DB에서 조회)
+app.get('/api/donation/campaigns', async (req, res) => {
   const conn = await pool.getConnection();
 
   try {
     const [rows] = await conn.query(
-      `SELECT DATE(created_at) AS date, amount_km 
-       FROM donation_ledger 
-       WHERE user_id=? AND type='debit' 
-       ORDER BY created_at DESC 
-       LIMIT 5`,
-      [userId]
+      `
+      SELECT 
+        id,
+        title,
+        organization,
+        goal_km,
+        current_km,
+        image,
+        description
+      FROM donation_campaigns
+      ORDER BY id
+      `
     );
 
-    const history = rows.map(r => ({
-      date: r.date,
-      distance_km: Number(r.amount_km).toFixed(2),  // ✅ Number() 추가
-    }));
+    const campaigns = rows.map((r) => {
+      const goalKm = Number(r.goal_km) || 0;
+      const currentKm = Number(r.current_km) || 0;
 
-    res.json({ history });
+      return {
+        id: r.id,
+        title: r.title,
+        organization: r.organization,
+        goalKm,          // 프론트에서 쓰던 이름
+        currentKm,       // DB에 저장된 누적 기부 거리
+        image: r.image,  // DB 컬럼명이 image_url이면 여기랑 아래 둘 다 바꾸기
+        description: r.description,
+        progress: goalKm > 0 
+          ? Number(((currentKm / goalKm) * 100).toFixed(1))
+          : 0,
+      };
+    });
+
+    res.json({ campaigns });
   } catch (e) {
-    console.error('❌ /api/donation/recent 에러:', e.message);
+    console.error('❌ /api/donation/campaigns 에러:', e.message);
     res.status(500).json({ error: e.message });
   } finally {
     conn.release();
@@ -373,42 +393,6 @@ app.get('/api/donation/recent', async (req, res) => {
 });
 
 
-// ▶ 캠페인 리스트 (더미 데이터)
-app.get('/api/donation/campaigns', (req, res) => {
-  const campaigns = [
-    {
-      id: 1,
-      title: '굿네이버스 러닝 캠페인',
-      organization: 'Good Neighbors',
-      goalKm: 100,
-      currentKm: 72.5,
-      image: 'https://cdn.pixabay.com/photo/2016/03/09/15/10/runners-1246610_1280.jpg',
-      description: '국내 취약계층 아동을 위한 러닝 기부 캠페인입니다.'
-    },
-    {
-      id: 2,
-      title: '하트세이브 마라톤',
-      organization: 'HeartSave 재단',
-      goalKm: 200,
-      currentKm: 185.3,
-      image: 'https://cdn.pixabay.com/photo/2019/05/06/16/32/run-4189082_1280.jpg',
-      description: '심장질환 환자 지원을 위한 러닝 기부 캠페인입니다.'
-    },
-    {
-      id: 3,
-      title: '러닝 포 피스',
-      organization: 'UN 평화재단',
-      goalKm: 300,
-      currentKm: 90.1,
-      image: 'https://cdn.pixabay.com/photo/2016/09/05/09/32/people-1647321_1280.jpg',
-      description: '전쟁 피해 지역 아동을 돕는 평화 러닝 캠페인입니다.'
-    }
-  ];
-
-  res.json({ campaigns });
-});
-
-// ▶ 기부하기 (거리 차감 + ledger 기록)
 // ▶ 기부하기 (거리 차감 + ledger 기록 + 캠페인 진행도 반영)
 app.post('/api/donation/donate', async (req, res) => {
   const { userId, campaignId, donateKm } = req.body;
@@ -463,7 +447,7 @@ app.post('/api/donation/donate', async (req, res) => {
       success: true,
       message: `✅ ${amount}km 기부 완료!`,
       donated_km: amount,
-      updatedKm: Number(row.current_km)  // ← 이게 핵심!
+      updatedKm: Number(row.current_km),
     });
   } catch (e) {
     await conn.rollback();
@@ -473,6 +457,7 @@ app.post('/api/donation/donate', async (req, res) => {
     conn.release();
   }
 });
+
 
 
 // -----------------------------------------------------------------------------
