@@ -152,29 +152,29 @@ class _RunningHomePageState extends State<RunningHomePage> {
         elevation: 0,
         centerTitle: true,
       ),
-      extendBodyBehindAppBar: true, // ✅ AppBar 위로 배경 확장
+      extendBodyBehindAppBar: true, // AppBar 위로 배경 확장
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ✅ 전체 배경 이미지
+          // 전체 배경 이미지
           Image.asset(
             '/Users/kimdahye/Desktop/ValueRun/src/running.png',
             fit: BoxFit.cover,
           ),
 
-          // ✅ 반투명 오버레이 (가독성 향상)
+          // 반투명 오버레이 (가독성 향상)
           Container(
             color: Colors.black.withOpacity(0.25),
           ),
 
-          // ✅ 메인 콘텐츠
+          // 메인 콘텐츠
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Column(
               children: [
                 const SizedBox(height: 100),
 
-                // 🔹 상단 카드 (거리 / 기부)
+                // 상단 카드 (거리 / 기부)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -184,7 +184,7 @@ class _RunningHomePageState extends State<RunningHomePage> {
                 ),
                 const SizedBox(height: 40),
 
-                // 🔹 중간 정보 (페이스 / 시간 / 칼로리)
+                // 중간 정보 (페이스 / 시간 / 칼로리)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -194,9 +194,10 @@ class _RunningHomePageState extends State<RunningHomePage> {
                   ],
                 ),
 
-                const Spacer(),
+                // 버튼을 화면 아래에 더 내리기 위해 간격 증가
+                const SizedBox(height:140),
 
-                // 🔹 하단 버튼
+                // START 버튼
                 GestureDetector(
                   onTap: _toggleRunning,
                   child: Container(
@@ -242,7 +243,23 @@ class _RunningHomePageState extends State<RunningHomePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 60),
+
+                
+
+const SizedBox(height: 30),
+
+                // ValueRun 텍스트 로고
+                Text(
+                  'ValueRun',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white.withOpacity(0.95),
+                    letterSpacing: 1.5,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
               ],
             ),
           ),
